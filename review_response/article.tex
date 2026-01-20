@@ -118,24 +118,32 @@ Campinas, SP, Brazil, 13083-896 \\
 \section{Reviewer \#2}
     \subsection{General Comment}
         This study attempts to integrate information entropy with segmentation models, proposing a novel approach for evaluating cloud masks. However, there are still some points that need to be clearly specified and addressed before acceptance.
-        \paragraph{Reply to General Comment:}
+        
+        \paragraph{Reply to General Comment:} 
     \subsection{Major Suggestions}
         \subsubsection{Comment \#1}
             Overall, the contribution and innovativeness of the manuscript are insufficient.
 
-            \paragraph{Reply to Comment \#1:}
+            \paragraph{Reply to Comment \#1:} We truly appreciate for your comment, although we do belive that the main idea of the paper is innovative. However, your comment showed that the inovation and contribution were not clearly explained. Therefore, we clarified these ideas in the last paragraph of the Introduction.
+
+            ""
+
         \subsubsection{Comment \#2}
             The Abstract and Introduction sections fail to highlight the contributions, innovations, and the significant importance of the research. Furthermore, the logic is confusing in several places, with paragraphs lacking transitions and logical flow. Excessive detail is given to non-essential background information, while the description of the present work is comparatively scarce.
 
-            \paragraph{Reply to Comment \#2:}
+            \paragraph{Reply to Comment \#2:} 
+
+            
         \subsubsection{Comment \#3}
             The content in the fourth paragraph is highly repetitive and disorganized, redundantly using phrases like "increasing research," "have been proposed," and "have proposed."
             \paragraph{Reply to Comment \#3:}
 
-        \subsubsection{Comment \#4}
+        \subsubsection{Comment \#4 - Feito}
            The experimental section lacks necessary explanations and details, for instance, whether prompts were used for the Segment Anything Model (SAM). Furthermore, using only the change in the number of objects as a measure of segmentation quality is unconvincing.
 
-            \paragraph{Reply to Comment \#4:}
+            \paragraph{Reply to Comment \#4:} The explanation about whether we used prompts for SAM was already explained in the first paragraph of the Section 3.3 as follows
+            
+            "For our analysis, we utilized the Vision Transformer-Large (ViT-L) image encoder with fully automatic segmentation mode, which segments the entire image. This differs from \citet{wang2024empirical} work, which utilized the Visual Reference Prompt tool to indicate the object to be segmented."
         \subsubsection{Comment \#5}
             The manuscript does not discuss the practical impact of cloud masking on subsequent classification tasks, remaining solely at the level of "object count." If the aim is to discuss the impact of cloud masking on classification tasks, it is recommended to introduce and evaluate using a dataset specifically designed for classification tasks.
 

@@ -18,8 +18,8 @@
 \usepackage{hyperref}
 \usepackage{url}
 
-\title{An Entropy-Based Assessment of Cloud Mask Algorithms for Satellite Image Segmentation
-}
+\title{An Entropy-Based Assessment of Cloud Mask Algorithms for Satellite Image Segmentation}
+
 \author{
 Fernando K. I. Fugihara, Rubens A. C. Lamparelli \\
 Plasticulture Engineering Center \\
@@ -28,7 +28,6 @@ Campinas, SP, Brazil, 13083-896 \\
 \texttt{f205067@dac.unicamp.br, lamparel@unicamp.br}
 \AND
 Marlon F. de Souza \\
-Group of Research and Extension in Agroindustrial Logistics -- ESALQ-LOG \\
 Luiz de Queiroz College of Agriculture (ESALQ) \\
 University of São Paulo -- USP \\
 Piracicaba, SP, Brazil, 13418-900 \\
@@ -66,13 +65,13 @@ Campinas, SP, Brazil, 13083-852 \\
 
         Clouds are a distinctive type of noise, especially significant in RS \citep{gawlikowski2022explaining,xu2019thin}, and different techniques play a key role in reducing this relevant source of uncertainty in image information \citep{darbaghshahi2022cloud}. The algorithms in this research domain can be categorized into cloud detection (CD), cloud masking, and gap filling or reconstruction, each addressing unique challenges. CD algorithms identify cloud-covered pixels and map them in the image. Cloud mask (CM) uses the output of CD to remove useless data. Once masked, cloud-contaminated regions can be addressed using four categories of reconstruction methods: spatial, spectral, temporal, and hybrid approaches \citep{shen2015missing}. Spatial-based methods restore corrupted pixels using cloud-free areas. Spectral approaches apply sensor fusion. Temporal compositing replaces occluded pixels with interpolation of cloud-free data from nearby dates. Finally, hybrid methods use a combination of the three previous methods to acquire additional data and fill missing values \citep{darbaghshahi2022cloud}. We can enhance any of these methods with strategies from artificial intelligence (AI).
 
-        There has been increasing research interest in algorithms for effective cloud screening in RS imagery \citep{aybar2024cloudsen12plus}. Numerous CM algorithms have been proposed, including those by \citet{zhu2012object,foga2017cloud,zhu2018automatic,pasquarella2023comprehensive} and \citet{francis2024sensor}. Researchers have proposed a wide range of CM techniques, including physical rule-based methods and advanced machine-learning approaches, each demonstrating varying levels of accuracy across different geographic regions and cloud conditions. Notably, in many cases, the presence of thin clouds, despite disturbing the image, still allows land cover (LC) classifiers to identify target objects correctly \citep{gawlikowski2022explaining,wang2024empirical}.
 
-        A large number of CM algorithms for optical satellite imagery exist, but few studies have conducted systematic intercomparisons of them \citep{skakun2022cloud}. While most research has evaluated CMs with traditional metrics, such as overall accuracy (OA) and F1-score, there is a notable gap in measuring how these algorithms affect the outcomes of subsequent classification or segmentation models. Moreover, no prior work has explored entropy-based methods to determine the effect of decreasing uncertainty while retaining most information. Therefore, this paper aims to compare seven CM algorithms based on OA, F1, Intersection over Union (IoU), Delta Entropy \(\Delta H\), and the variation in the results of a robust AI model caused by CM \(\Delta NO\), using the CloudSEN12+ manually labeled reference mask as ground truth.
+        A large number of CM algorithms for optical satellite imagery exist, ranging from physical rule-based to deep-learning approaches \citep{aybar2024cloudsen12plus,zhu2012object,foga2017cloud,zhu2018automatic,pasquarella2023comprehensive, francis2024sensor} but few studies have conducted systematic intercomparisons of them \citep{skakun2022cloud}. While most research has evaluated CMs with traditional metrics, such as overall accuracy (OA), F1-score, and Intersection over Union (IoU) there is a notable gap in measuring how these algorithms affect the outcomes of downstream tasks. Moreover, no prior work has explored entropy-based methods to determine the effect of decreasing uncertainty while retaining most information.  \citet{wang2024empirical} showed that foundation models, can still accomplish their tasks despite the presence of disturbances such as thin clouds.
 
         To quantify the impact of CM methods on segmentation tasks, we used the Segment Anything Model (SAM), a foundation model trained on the extensive SA-1B dataset. SAM has demonstrated impressive generalization capabilities across various image domains \citep{kirillov2023segment}. However, an empirical study on the robustness of SAM \citep{wang2024empirical} revealed that its performance declines when applied to perturbed images. Notably, \citet{wang2024empirical} did not specifically evaluate SAM's performance on satellite imagery with clouds as a perturbation source; instead, they assessed a range of images (including aerial) with fog and eight other types of perturbations. We applied CM to the satellite images, segmented them, and compared the results to a SAM segmentation in the raw image. 
-
-        We introduced $\Delta H$ to measure the impact of CM on information retention. Additionally, we evaluated how this essential RS preprocessing step influences the performance of robust machine learning (ML) models, comparing the number of objects segmented in raw versus cloud-masked images to quantify the change in segmentation due to masking. The CM effectively minimized perturbations caused by cloud cover, resulting in SAM achieving a higher number of segmented objects. The rest of this paper is organized into four main sections, following this introduction. Section 2 provides a concise review of the theoretical background that motivated our exploration of entropy. Section 3 describes the methodology. Results and discussion are in Section 4. Finally, Section 5 summarizes our conclusions.
+        
+        This paper aims to compare seven CM algorithms based on traditional metrics (OA, F1 and IoU) and two novel metrics: the mean entropy difference ($\overline{\Delta H}$) and the mean relative difference in object counts ($\overline{\Delta NO}$) using the CloudSEN12+ manually labeled reference mask \citep{aybar2024cloudsen12plus} as ground truth. Our contribution is to show a new approach to compare CM algorithms using entropy-based and downstream-based metrics. 
+        We observed that CM decreased scene entropy by eliminating cloud-perturbed pixels, which led to SAM segmenting more objects. The concepts used in this analysis can be translated into other downstream tasks, besides full-scene segmentation. The rest of this paper is organized into four main sections, following this introduction. Section 2 provides a concise review of the theoretical background that motivated our exploration of entropy. Section 3 describes the methodology. Results and discussion are in Section 4. Finally, Section 5 summarizes our conclusions.
 
     
     \section{Entropy in the Context of Digital Images}
@@ -229,10 +228,10 @@ Campinas, SP, Brazil, 13083-852 \\
 
             \begin{equation}
             \label{eq 9}
-                \Delta{H(R)}=H(R)_{Raw}-H(R)_{Masked}
+                \Delta{H(band)}=H(band)_{Raw}-H(band)_{Masked}
             \end{equation}
 
-            If $\Delta H(R)>0$, this implies there was an increase in the scene uncertainty. Inversely, $\Delta H(R)<0$ means that the CM decreased the uncertainty, increasing the image predictability. $\Delta H(R) \approx 0$ indicates that the CM did not change the information content. In order to compare and evaluate the CMs, we calculated the mean of $\Delta H$ in each band across the image set and named it $\overline{H(\text{band})}$. Given that the RGB bands exhibit similar values and behavior (See Figure 8 in Section 4), the red band was chosen as the only one shown in some analyses. For simplicity, we adopted $\overline{\Delta{H}}$ to refer to $\overline{\Delta H(R)}$ in the rest of the paper. 
+            If $\Delta H(band)>0$, this implies there was an increase in the scene uncertainty. Inversely, $\Delta H(band)<0$ means that the CM decreased the uncertainty, increasing the image predictability. $\Delta H(band) \approx 0$ indicates that the CM did not change the information content. In order to compare and evaluate the CMs, we calculated the mean of $\Delta H$ in each band across the image set and named it $\overline{H(\text{band})}$. Given that the RGB bands exhibit similar values and behavior (See Figure 8 in Section 4), the red band was chosen as the only one shown in some analyses. For simplicity, we adopted $\overline{\Delta{H}}$ to refer to $\overline{\Delta H(red)}$ in the rest of the paper. 
 
             A complementary analysis was conducted on 1200 images from CloudPlast, where we assessed the effect of cloud masking on the agricultural landscape. We used the best-performing mask from the previous analysis (SEnSei-V2) on CloudPlast, calculating the mean relative difference in object counts ($\overline{\Delta NO}$) and the mean entropy difference ($\overline{\Delta H}$).
 
@@ -373,7 +372,7 @@ Campinas, SP, Brazil, 13083-852 \\
             \end{figure}
             \FloatBarrier
 
-            In a search for S2 scenes where CM had a minor impact on segmentation outcomes, we found some examples, as the one presented in Figure 12. This scene features a complex landscape with unclear object boundaries, irregular shapes, low contrast, and hard-to-distinguish textures (Figure 12.a). Segmenting smaller and irregular objects poses difficulties for SAM, regardless of whether we use automatic or prompt-based segmentation \citep{osco2023segment}. Figure 12b illustrates the situation where SAM struggled to define the objects. In such instances, cloud masking has a minor impact on the segmentation results (Figure 12c). Entropy alone does not fully define the predictability of an image. Combining spectral, textural, and contextual features with entropy would be necessary regardless of whether the image is a photomicrograph or a satellite image. For example, to accurately assess the unpredictability of the texture, we first need to create the co-occurrence matrix for all objects in the image and then calculate entropy from this matrix to quantify the unpredictability of the texture \citep{haralick1973textural}.
+            In a search for S2 scenes where CM had a minor impact on segmentation outcomes, we found some examples, as the one presented in Figure \ref{fig 12}. This scene features a complex landscape with unclear object boundaries, irregular shapes, low contrast, and hard-to-distinguish textures (Figure \ref{fig 12}.a). Segmenting smaller and irregular objects poses difficulties for SAM, regardless of whether we use automatic or prompt-based segmentation \citep{osco2023segment}. Figure 12b illustrates the situation where SAM struggled to define the objects. In such instances, cloud masking has a minor impact on the segmentation results (Figure \ref{fig 12}c). Entropy alone does not fully define the predictability of an image. Combining spectral, textural, and contextual features with entropy would be necessary regardless of whether the image is a photomicrograph or a satellite image. For example, to accurately assess the unpredictability of the texture, we first need to create the co-occurrence matrix for all objects in the image and then calculate entropy from this matrix to quantify the unpredictability of the texture \citep{haralick1973textural}.
 
             \begin{figure}[!hbt]
                 \centering
