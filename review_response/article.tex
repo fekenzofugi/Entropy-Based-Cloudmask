@@ -1,0 +1,153 @@
+
+\documentclass{article} % For LaTeX2e
+\usepackage{kenzo,times}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{booktabs}
+
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+
+\title{Review Response}
+
+\author{Fernando K.I. Fugihara \\
+Universidade Estadual de Campinas – UNICAMP\\
+Campinas, SP, Brazil, 13083-896 \\
+\texttt{f205067@dac.unicamp.br} \\
+}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\kenzofinalcopy % Uncomment for final version
+\begin{document}
+\maketitle
+
+% \begin{abstract}
+
+% \end{abstract}
+    
+\section{Reviewer \#1}
+    \subsection{General Comment}
+        Thank you for submitting this interesting manuscript. The study presents a novel entropy-based framework for evaluating cloud mask performance and introduces segmentation-derived object loss as a proxy for downstream task impact. The motivation is relevant and the framework has potential value; however, several methodological and clarity-related aspects require substantial revision before the manuscript can be considered for publication.
+
+        \paragraph{Reply to General Comment:}
+    \subsection{Major Suggestions}
+        \subsubsection{Comment \#1}
+            Clarification and Emphasis of Contributions in the Introduction
+            The final paragraph of the Introduction mainly summarizes the structure but does not clearly state the specific contributions of the work. It is standard in Remote Sensing of Environment papers to conclude the introduction with a structured list of contributions. I recommend revising the paragraph to explicitly state the novel aspects of the work. For example, proposing an entropy-based framework to evaluate downstream segmentation effects, introducing SAM-derived object counts ($\Delta NO$) as a task-oriented metric, and conducting large-scale comparisons across diverse models and datasets. This will help readers quickly grasp the scope and value of the paper.
+
+            \paragraph{Reply to Comment \#1:}
+        \subsubsection{Comment \#2}
+            The entropy difference $\Delta H$ is defined as $( ) - ( )$ , but the manuscript claims that $\Delta H$ greater than 0 indicates increased uncertainty. This statement is incorrect based on the definition provided. A positive $ \Delta H$ should mean the entropy decreased after masking. This inconsistency should be corrected, and any dependent conclusions should be updated accordingly.
+            \paragraph{Reply to Comment \#2:}
+
+        \subsubsection{Comment \#3}
+            The manuscript evaluates four classes (thick cloud, thin cloud, shadow, and land), but almost every formula provided are only defined for binary classification. It is not stated how these metrics (precision, recall, F1-score, and IoU) were extended to the multiclass setting. Please clarify whether the metrics were computed per class, then averaged (e.g., macro-averaging), aggregated across all pixels (micro-averaging), or reduced to a binary cloud vs non-cloud mask. This clarification is important to properly interpret the comparison results and ensure alignment with multiclass evaluation standards. Relevant intercomparison frameworks and multiclass cloud detection formulations are available in the recent cloud detection literature and can help standardize reporting and interpretation in a multiclass setting.
+            \paragraph{Reply to Comment \#3:}
+
+        \subsubsection{Comment \#4}
+            The entropy analysis presented in the manuscript is based on single-band histogram evaluations (using the red band), which may be insufficient to distinguish classes with similar reflectance characteristics, such as cloud vs snow, cloud vs other bright surfaces, or shadow vs water or dark terrain. Such spectral ambiguities are highly relevant in real-world scenes and may limit the robustness of entropy difference ($\Delta H$) as an informative evaluation metric in heterogeneous or high-albedo environments. It is unclear whether the tested datasets include these challenging cases. If not, this should be acknowledged as a limitation, and the authors may consider discussing whether extending the entropy calculation to multi-band, joint, or texture-based forms might improve class separability and make $\Delta H$ more robust in such scenarios.
+            \paragraph{Reply to Comment \#4:}
+
+            \subsubsection{Comment \#5}
+            The threshold experiments shown in Figure 6 and Tables 3-4 provide suggested optimal ranges for cloud probability threshold (CPT) and clear threshold (CT) values. However, the results are presented without any uncertainty estimates (e.g., variance, standard deviation, or confidence intervals). As threshold selection can be sensitive to dataset composition and the specific scenes tested, the absence of such statistical measures makes it difficult to judge the robustness and generalizability of the proposed thresholds. Including uncertainty estimates would strengthen the threshold analysis and ensure that the recommendations are not overinterpreted based on a limited or non-representative subset of test images.
+            \paragraph{Reply to Comment \#5:}
+
+        \subsubsection{Comment \#6}
+            Several IoU values reported are below 0.5, particularly for thin cloud and shadow classes. IoU values below 0.5 are generally considered insufficient in operational scenarios. The manuscript should clarify whether this level of performance is expected for the compared methods or if the results are mainly for relative comparison. Some context from existing benchmark studies would help.
+            \paragraph{Reply to Comment \#6:}
+
+        \subsubsection{Comment \#7}
+            The study includes comparisons using U-Net-based models and SEnSeI-v2, which are valid choices and widely used in cloud segmentation tasks. However, recent advancements in deep learning for remote sensing have shown that transformer-based architectures (e.g., Swin-Unet, SegFormer, UNetFormer, and MAE-based models) often outperform traditional convolutional-based models on various semantic segmentation problems, including cloud detection. These architectures benefit from long-range spatial dependency modeling and multi-scale context aggregation, often leading to improved performance in heterogeneous and complex environments. Since this manuscript aims to provide a comprehensive comparison of cloud masking methods at scale, it would be appropriate to either (a) include at least one representative transformer-based cloud segmentation model in the comparison, or (b) acknowledge this omission explicitly as a limitation. including such a model (or addressing the absence clearly) would ensure that the evaluation framework and conclusions are aligned with the current state of the art (SOTA) in deep learning for remote sensing.
+            \paragraph{Reply to Comment \#7:}
+
+        \subsubsection{Comment \#8}
+            The code repository is mentioned, but it is not clear stated whether the full set of cloud mask outputs, entropy difference ($\Delta H$) maps, and segmentation object loss ($\Delta NO$) visualizations used in the paper are to be included. Since the visual and per-image results play a significant role in your evaluation (e.g., Figure 3 and threshold analysis), I recommend adding these outputs directly to the repository or submitting them as supplementary material. This would improve transparency and allow readers to exactly reproduce the evaluations and visual comparisons presented in the paper.
+            \paragraph{Reply to Comment \#8:}
+
+    \subsection{Minor Suggestions}
+        \subsubsection{Comment \#1 - Figure 3 Image Selection}
+            The selection method of images used in qualitative comparisons (e.g., Figure 3) is not described. Please clarify whether these were randomly selected, chosen to represent typical cases, or selected for specific traits such as edge cases.
+            \paragraph{Reply to Comment \#1:}
+
+        \subsubsection{Comment \#2 - Grayscale Visualization of Classes}
+            The grayscale representation used in qualitative figures does not clearly distinguish between thick and thin clouds, especially in printed or grayscale copies. Consider using color or distinct intensity patterns.
+            \paragraph{Reply to Comment \#2:}
+
+        \subsubsection{Comment \#3 - Clarify Threshold Terminology}
+            Some terms like cloud probability threshold and clear threshold should be more clearly defined, especially for algorithms like s2cloudless that use dual thresholds.
+            \paragraph{Reply to Comment \#3:}
+
+        \subsubsection{Comment \#4 - Justify Single Band Entropy Focus}
+            The manuscript often uses entropy from the red band as representative of all RGB channels. Please clarify why this choice is made or show that entropy across all bands behaves similarly.
+            \paragraph{Reply to Comment \#4:}
+
+        \subsubsection{Comment \#5 - Consistent Citation of Shannon}
+            There is inconsistency in the reference to Shannon's work. Please standardize whether you are referring to the 1948 paper or the 1949 book.
+            \paragraph{Reply to Comment \#5:}
+
+        \subsubsection{Comment \#6 - Shadow Threshold Sensitivity}
+            The threshold of NIR less than 0.1 is used to detect shadows. Please provide justification for this threshold or show sensitivity of metrics to changes in this value.
+            \paragraph{Reply to Comment \#6:}
+
+        \subsubsection{Comment \#7 - Notation Consistency}
+            Ensure consistent formatting for technical terms throughout the paper, such as $\Delta H$, IoU, and class labels. Check thoroughly.
+            \paragraph{Reply to Comment \#7:}
+
+        \subsubsection{Comment \#8 - Highlighting Best Results in Tables}
+            Best values in tables are currently indicated with bold or underline, but not always clearly. Consider using a clearer method or note if differences are not statistically significant.
+            \paragraph{Reply to Comment \#8:}
+
+        \subsubsection{Comment \#9 - Figure Captions Could Be More Informative}
+            Some figure captions do not provide enough context about what the figure is demonstrating. Adding such detail will make the visual results easier to interpret.
+            \paragraph{Reply to Comment \#9:}
+
+        \subsubsection{Comment \#10 - Language and Formatting}
+            A final proofreading pass is recommended to ensure consistency in terminology, grammar, and figure/table formatting.
+            \paragraph{Reply to Comment \#10:}
+
+
+\section{Reviewer \#2}
+    \subsection{General Comment}
+        This study attempts to integrate information entropy with segmentation models, proposing a novel approach for evaluating cloud masks. However, there are still some points that need to be clearly specified and addressed before acceptance.
+        \paragraph{Reply to General Comment:}
+    \subsection{Major Suggestions}
+        \subsubsection{Comment \#1}
+            Overall, the contribution and innovativeness of the manuscript are insufficient.
+
+            \paragraph{Reply to Comment \#1:}
+        \subsubsection{Comment \#2}
+            The Abstract and Introduction sections fail to highlight the contributions, innovations, and the significant importance of the research. Furthermore, the logic is confusing in several places, with paragraphs lacking transitions and logical flow. Excessive detail is given to non-essential background information, while the description of the present work is comparatively scarce.
+
+            \paragraph{Reply to Comment \#2:}
+        \subsubsection{Comment \#3}
+            The content in the fourth paragraph is highly repetitive and disorganized, redundantly using phrases like "increasing research," "have been proposed," and "have proposed."
+            \paragraph{Reply to Comment \#3:}
+
+        \subsubsection{Comment \#4}
+           The experimental section lacks necessary explanations and details, for instance, whether prompts were used for the Segment Anything Model (SAM). Furthermore, using only the change in the number of objects as a measure of segmentation quality is unconvincing.
+
+            \paragraph{Reply to Comment \#4:}
+        \subsubsection{Comment \#5}
+            The manuscript does not discuss the practical impact of cloud masking on subsequent classification tasks, remaining solely at the level of "object count." If the aim is to discuss the impact of cloud masking on classification tasks, it is recommended to introduce and evaluate using a dataset specifically designed for classification tasks.
+
+            \paragraph{Reply to Comment \#5:}
+        \subsubsection{Comment \#6}
+            The experiments lack validation across different geographical regions and sensors (generalization experiments), thus failing to demonstrate that the method is universally applicable.
+            
+            \paragraph{Reply to Comment \#6:}
+
+\clearpage
+
+\bibliography{kenzo}
+\bibliographystyle{kenzo}
+
+\end{document}

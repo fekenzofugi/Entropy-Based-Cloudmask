@@ -1,0 +1,401 @@
+
+\documentclass{article} % For LaTeX2e
+\usepackage{kenzo,times}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{booktabs}
+
+% Keywords command
+\providecommand{\keywords}[1]
+{\small	\textbf{\textit{Keywords---}} #1}
+
+\title{An Entropy-Based Assessment of Cloud Mask Algorithms for Satellite Image Segmentation
+}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+
+\title{An Entropy-Based Assessment of Cloud Mask Algorithms for Satellite Image Segmentation
+}
+\author{
+Fernando K. I. Fugihara, Rubens A. C. Lamparelli \\
+Plasticulture Engineering Center \\
+Universidade Estadual de Campinas -- UNICAMP \\
+Campinas, SP, Brazil, 13083-896 \\
+\texttt{f205067@dac.unicamp.br, lamparel@unicamp.br}
+\AND
+Marlon F. de Souza \\
+Group of Research and Extension in Agroindustrial Logistics -- ESALQ-LOG \\
+Luiz de Queiroz College of Agriculture (ESALQ) \\
+University of São Paulo -- USP \\
+Piracicaba, SP, Brazil, 13418-900 \\
+\texttt{marlon.souza@usp.br}
+\AND
+Helio Pedrini \\
+Institute of Computing \\
+Universidade Estadual de Campinas -- UNICAMP \\
+Campinas, SP, Brazil, 13083-852 \\
+\texttt{helio@ic.unicamp.br}
+}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\kenzofinalcopy % Uncomment for final version
+\begin{document}
+\maketitle
+
+    \begin{abstract}
+        Cloud cover remains a significant obstacle in optical remote sensing, as it obscures surface reflectance and compromises the quality of satellite-derived information. This study introduces an entropy-based assessment of cloud mask (CM) algorithms to evaluate their effectiveness in reducing uncertainty while preserving relevant information in satellite imagery. We compared seven CM algorithms using traditional accuracy metrics, such as Overall Accuracy (OA), F1-score, and Intersection over Union (IoU), alongside two novel measures: mean entropy difference $\overline{\Delta H}$. and the mean relative difference in object counts ($\overline{\Delta NO}$) derived from the Segment Anything Model (SAM) segmentation outputs. Experiments were conducted on the CloudSEN12+ dataset, with additional analysis on a time-series dataset (CloudPlast) from agricultural regions prone to cloud contamination and spectral confusion caused by plasticulture. Our results demonstrate that SEnSeI-v2 and UnetMobV2 outperform other methods, reducing entropy and significantly enhancing segmentation robustness under cloud-perturbed conditions. Furthermore, the proposed metrics provide a complementary perspective to conventional accuracy measures, linking cloud masking performance to downstream segmentation tasks. This work highlights the importance of integrating entropy-based evaluation into CM studies and underscores the potential of cloud-aware preprocessing for improving machine learning pipelines in remote sensing.
+    \end{abstract}
+
+    %TC:ignore
+    \keywords{Cloud masking, entropy, satellite data, optical remote sensing, image segmentation, preprocessing}
+    \clearpage
+
+    \section{Introduction}
+        Cloud cover remains a major challenge in optical remote sensing (RS), despite the significant increase in the quality and quantity of satellite observations over the past decades. Thick clouds block all optical bands, completely obscuring the reflectance signals and, thus, the underlying surface, resulting in considerable data gaps \citep{meraner2020cloud}. On the other hand, thin clouds and shadows still allow visualization of the Earth's surface, but with some level of disturbance. In these cases, despite the corruption, some information remains available, and deep learning (DL) models, supported by previous and subsequent images, can identify what is under the clouds with an acceptable degree of reliability, similar to that of a human observer. Cloud cover particularly poses a substantial challenge for applications that require consistent time series, such as agricultural monitoring, or for obtaining images of specific scenes at predetermined times, as in disaster monitoring \citep{robinson2019spatial,meraner2020cloud,tsardanidis2025cloud}.
+
+        The relevance of the clouds problem becomes explicit in long-term time series \citep{gawlikowski2022explaining,xu2019thin,wen2001impact}. \citet{king2013spatial} reported cloud cover over 67\% of the surface across 12 years of Moderate Resolution Imaging Spectroradiometer (MODIS) data, resulting in gaps that may compromise analysis. Since aggressive masks can cause significant information loss, it is crucial to balance filtering contaminated areas with preserving as much valuable data as possible \citep{wen2001impact}.
+
+        Clouds are a distinctive type of noise, especially significant in RS \citep{gawlikowski2022explaining,xu2019thin}, and different techniques play a key role in reducing this relevant source of uncertainty in image information \citep{darbaghshahi2022cloud}. The algorithms in this research domain can be categorized into cloud detection (CD), cloud masking, and gap filling or reconstruction, each addressing unique challenges. CD algorithms identify cloud-covered pixels and map them in the image. Cloud mask (CM) uses the output of CD to remove useless data. Once masked, cloud-contaminated regions can be addressed using four categories of reconstruction methods: spatial, spectral, temporal, and hybrid approaches \citep{shen2015missing}. Spatial-based methods restore corrupted pixels using cloud-free areas. Spectral approaches apply sensor fusion. Temporal compositing replaces occluded pixels with interpolation of cloud-free data from nearby dates. Finally, hybrid methods use a combination of the three previous methods to acquire additional data and fill missing values \citep{darbaghshahi2022cloud}. We can enhance any of these methods with strategies from artificial intelligence (AI).
+
+        There has been increasing research interest in algorithms for effective cloud screening in RS imagery \citep{aybar2024cloudsen12plus}. Numerous CM algorithms have been proposed, including those by \citet{zhu2012object,foga2017cloud,zhu2018automatic,pasquarella2023comprehensive} and \citet{francis2024sensor}. Researchers have proposed a wide range of CM techniques, including physical rule-based methods and advanced machine-learning approaches, each demonstrating varying levels of accuracy across different geographic regions and cloud conditions. Notably, in many cases, the presence of thin clouds, despite disturbing the image, still allows land cover (LC) classifiers to identify target objects correctly \citep{gawlikowski2022explaining,wang2024empirical}.
+
+        A large number of CM algorithms for optical satellite imagery exist, but few studies have conducted systematic intercomparisons of them \citep{skakun2022cloud}. While most research has evaluated CMs with traditional metrics, such as overall accuracy (OA) and F1-score, there is a notable gap in measuring how these algorithms affect the outcomes of subsequent classification or segmentation models. Moreover, no prior work has explored entropy-based methods to determine the effect of decreasing uncertainty while retaining most information. Therefore, this paper aims to compare seven CM algorithms based on OA, F1, Intersection over Union (IoU), Delta Entropy \(\Delta H\), and the variation in the results of a robust AI model caused by CM \(\Delta NO\), using the CloudSEN12+ manually labeled reference mask as ground truth.
+
+        To quantify the impact of CM methods on segmentation tasks, we used the Segment Anything Model (SAM), a foundation model trained on the extensive SA-1B dataset. SAM has demonstrated impressive generalization capabilities across various image domains \citep{kirillov2023segment}. However, an empirical study on the robustness of SAM \citep{wang2024empirical} revealed that its performance declines when applied to perturbed images. Notably, \citet{wang2024empirical} did not specifically evaluate SAM's performance on satellite imagery with clouds as a perturbation source; instead, they assessed a range of images (including aerial) with fog and eight other types of perturbations. We applied CM to the satellite images, segmented them, and compared the results to a SAM segmentation in the raw image. 
+
+        We introduced $\Delta H$ to measure the impact of CM on information retention. Additionally, we evaluated how this essential RS preprocessing step influences the performance of robust machine learning (ML) models, comparing the number of objects segmented in raw versus cloud-masked images to quantify the change in segmentation due to masking. The CM effectively minimized perturbations caused by cloud cover, resulting in SAM achieving a higher number of segmented objects. The rest of this paper is organized into four main sections, following this introduction. Section 2 provides a concise review of the theoretical background that motivated our exploration of entropy. Section 3 describes the methodology. Results and discussion are in Section 4. Finally, Section 5 summarizes our conclusions.
+
+    
+    \section{Entropy in the Context of Digital Images}
+        Entropy-based methods for analyzing complexity and randomness have been extensively employed across diverse scientific domains (e.g., ecology, ML, physics, neuroscience, cryptography, among others). In most cases where it was engaged, entropy has been used to quantify the average information associated with a random variable \citep{shannon1948mathematical}. In ecology, the Shannon entropy serves as the foundation for biodiversity indices, quantifying species distributions in ecosystems \citep{masisi2008use}. Neuroscience utilizes entropy measures to characterize the complexity of neural activity patterns and brain states \citep{viol2017shannon}. In physics, entropy is central to the concept of the arrow of time, describing the tendency of isolated systems to evolve toward states of higher disorder \citep{schneider1994life}. In ML, entropy quantifies the uncertainty or impurity in a dataset, serving as a key metric for tasks such as feature selection, decision tree splitting, and model optimization \citep{breiman2017classification}.
+
+        Equation \ref{eq 1} describes the entropy $H(X)$ associated with a discrete random variable $X$ with a probability mass function $p(x)$. It measures the average information (in bits) of a random variable, capturing the uncertainty inherent in its outcomes. It reflects the expected amount of information needed to describe the variable. In a digital image with bit depth $N$, where $X$ is the pixel intensity, within $[0,1,\ldots,2N-1]$. The probability mass function p(x) is the normalized histogram of intensities described in Equation \ref{eq 2}.
+
+        \begin{equation}
+        \label{eq 1}
+            H(X)=-\sum_{x} p(x)\log_{2}[p(x)]
+        \end{equation}
+
+        \begin{equation}
+        \label{eq 2}
+            p(x)=P(X=x)= \frac{\text{Number of pixels with intensity x} }{\text{Total Pixels in Image}}
+        \end{equation}  
+
+        In information theory, $I(X)$ quantifies the uncertainty or surprise associated with an event (Equation \ref{eq 3}). In the context of image processing, it measures the unpredictability of a pixel's intensity. By reformulating Equation \ref{eq 1} for a digital image, we express entropy in Equation \ref{eq 4}, which represents the expected information content across all pixel intensities in a digital image.
+
+        \begin{equation}
+        \label{eq 3}
+            I(X) = \log_2\!\left[ \frac{1}{p(x)} \right]
+        \end{equation}
+
+        \begin{equation}
+        \label{eq 4}
+            H(X) = \sum_{x=0}^{2^N-1}p(x)\log_2\!\left[\frac{1}{p(x)} \right]=\sum_{x=0}^{2^N-1}p(x)I(x)
+        \end{equation}
+
+        The entropy reaches its minimum when all pixels share the same intensity value, as in completely uniform images (Figure \ref{fig 1}a). Conversely, entropy maximizes when all $N$ intensity levels appear with equal probability, as seen in highly complex textures (Figures \ref{fig 1}d and \ref{fig 1}e) or completely random noise (Figure \ref{fig 1}f). Entropy is determined solely by the probability distribution of pixel intensities, measuring how often different intensity values occur while disregarding their spatial arrangement. Consequently, images with markedly different structural compositions can exhibit identical entropy values when their intensity histograms match. This phenomenon is illustrated in Figure \ref{eq 1}, where visually distinct images, one with large homogeneous regions (Figure \ref{fig 1}b) and one with many small objects (Figure \ref{fig 1}c), can share the same entropy value if their intensity distributions are similar.
+
+        \begin{figure}[!h]
+            \centering
+            \includegraphics[width=1\linewidth]{Figures/Figure1.png}
+            \caption{Illustration of different entropy values compared with other images. Source: Pedrini \& Schwartz (2007).}
+            \label{fig 1}
+        \end{figure}
+        \FloatBarrier
+
+        Images with extensive cloud cover typically exhibit low entropy, as structural uniformity and limited spectral diversity suppress variations in pixel intensities \citep{meraner2020cloud}. Although such clouds often display high reflectance intensities, the majority of pixels fall within a narrow intensity range, resulting in a predictable and homogeneous distribution. In contrast, partly cloudy images introduce mixed textures, where bright, uniform cloud regions coexist with the more complex and variable reflectance patterns of thin clouds with underlying surfaces such as vegetation, water, or urban areas. This combination leads to a broader and less predictable pixel intensity distribution, resulting in increased entropy reflecting higher information content and greater uncertainty within the image.
+        
+        \citet{wang2024empirical} evaluated SAM's prompt segmentation performance under various image perturbations, including environmental factors such as fog and snow, which share similarities with cloud cover in terms of visual obstruction and uniformity. The findings indicated that SAM's segmentation accuracy generally declines under such conditions, highlighting its vulnerability to perturbations that reduce image clarity and contrast.
+
+        Cloud masking techniques are commonly employed to identify and exclude cloud-covered regions from analysis. By removing these areas, CM reduces the entropy, increasing image predictability, thereby decreasing overall scene uncertainty. This enhances the reliability of downstream processes such as LC classification, change detection, or surface reflectance analysis by focusing only on pixels that carry meaningful information.
+
+        \section{Materials and Methods}
+            This section is divided into six subsections: Data, CM Algorithms, Segmentation Model, Evaluation Metrics, Cloud Threshold Sensitivity Analysis, and Edge Cases Assessment. The data used in this paper are described in Section 3.1. In Section 3.2, we present the seven CMs that were tested. The parameters of SAM \citep{kirillov2023segment} are outlined in Section 3.3. The methodology for comparing CMs on CloudSEN12+ under diverse conditions concerning OA, F1, H, NO, and IoU is detailed in Section 3.4. The analysis of cloud threshold sensitivity is presented in Section 3.5. Finally, Section 3.6 describes how we analyzed edge cases.
+
+            \subsection{Data}
+                A variety of public datasets are available to support CD and CM research. Notable ones include Hollstein \citet{hollstein2016ready}, L8Biome \citep{foga2017cloud}, CESBIO \citep{baetens2019validation}, GSFC \citep{skakun2022cloud}, CloudSEN12 \citep{aybar2022cloudsen12}, and more recently, CloudSEN12+ \citep{aybar2024cloudsen12plus}. These datasets were compiled or created for various objectives, using different methods and cloud classification approaches.
+
+                CloudSEN12+ benchmark dataset \citep{aybar2024cloudsen12plus} emerged as the most suitable choice for our study. It comprises over 50,000 Harmonized Sentinel-2 (S2) Multispectral Instrument (MSI) Level-2A surface reflectance (SR) imagery from diverse global regions, each accompanied by a human-annotated cloud label. The CloudSEN12+ was accessed via the Python library tacoreader version 0.5.6 \citep{aybar2025tacoreader}. In CloudSEN12+, \citet{aybar2024cloudsen12plus} classified the images into four LC classes (clear land, thick clouds, thin clouds, and cloud shadows), within five different cloud cover conditions: cloudless (0\%), mostly clear (0–25\%), slightly cloudy (25–65\%), moderately cloudy (45–65\%), and cloudy ($>65\%$). In this analysis, we used all classes across all conditions.
+
+                Time-series S2 data from an agricultural Region of Interest (ROI) were integrated to enhance the analysis. We named this set of images as CloudPlast. The area where the CloudPlast was delimited consists of a farming region in Mossoró, RN, Brazil. We created the time series using all images from June 01 to October 01, 2024. We randomly selected 50 sample points within the ROI and used each point as the centroid for extracting the corresponding image patch. The fields observed in the aerial images were generally large and exhibited regular, well-defined edges. This region includes plasticulture plots that exhibit a spectral response potentially similar to clouds in some wavelengths, which may lead to misclassification as such. The plastic film most commonly used by farmers for soil mulching has a white outer surface and exhibits medium to high reflectance across several bands. Two common assumptions in many CD algorithms are that clouds are more reflective at visible wavelengths and colder than the Earth's surface below \citep{zhuge2017fast,hocking2011cloud}. We hypothesize that this image set could enhance the analysis. However, we did not calculate all the metrics due to the absence of ground truth to build the confusion matrix. We concentrated on studying the new proposed metrics.
+
+                In both sets, CloudSEN12+ and CloudPlast, we reported results based on a subset selection that includes only images with cloud cover between 10\% and 90\%, as this is the range where CM can have the most significant impact. For under 10\% cloud cover, CMs have a diminished effect, and over 90\% cloud cover, masked and raw images provide little helpful information. However, to further investigate and illustrate specific scenarios of interest, we also incorporated a limited number of images that fall outside this range, allowing for a broader examination of edge cases and extreme situations, as further described in Section 3.6.
+
+            \subsection{Cloud Mask Algorithms}
+
+            We compared seven CM algorithms, presented in Table 1. They all have published articles, and the respective references are listed in Table 1. Public code implementations are available for each method on GitHub or in Google Earth Engine (GEE). However, some implementations have limited access. For example, Sen2Cor requires registration on ESA's website, relies on additional tools such as SNAP, and has specific system dependencies. Over time, these masks have been extensively tested and incorporated improvements based on previous analysis and modeling. All algorithms compared detect and apply the mask to remove the areas of the image covered by clouds. Algorithms that perform only CD were not used in this study.
+
+            CS+ and s2cloudless lack built-in detection for distinguishing between clouds and shadows. Therefore, we adopted the cloud shadow detection method already proposed by the s2cloudless \citep{braaten2020accurate,braaten2020s2cloudless,eoresearch2020cloud}. Pixels with near-infrared (NIR) values below the NIR dark threshold of 0.1 were classified as cloud shadows for both s2cloudless and CS+. The pixels within the CM and below the threshold were considered shadow in CS+. For the s2cloudless, shadows were defined as the pixels outside the mask where the NIR values were below the threshold.
+
+            The well-known QA60 bitmask was not considered in this comparison because it has different characteristics compared to the seven CMs tested. Additionally, although the QA60 is a standard S2 "quality assurance" band included with all top-of-atmosphere reflectance (L1C) products \citep{aybar2022cloudsen12,coluzzi2018first,drusch2012sentinel}, representing the current operational baseline, it is considered the least reliable algorithm in terms of accuracy, according to \citet{aybar2022cloudsen12}. All CM algorithms were compared using the CloudSEN12+. For the CloudPlast further analysis, we used only the best-performing algorithm on the CloudSEN12+ dataset: SEnSeI-v2.
+
+            \begin{table}[htbp]
+            \centering
+            \caption{CM algorithms specifications.}
+            \label{tab:cm_algorithms}
+            \small
+                \begin{tabular}{@{}lcccl@{}}
+                \toprule
+                \textbf{Algorithm} & \textbf{Approach} & \textbf{Detect} & \textbf{Customizable} & \textbf{References} \\
+                &  & \textbf{Shadow?} & \textbf{cloud threshold} & \\ 
+                \midrule
+                Fmask 4.0 & Physical Rules & Yes & No & \citep{qiu2019fmask} \\[2pt]
+                KappaMask V2 & DL & Yes & No & \citep{domnich2021kappamask} \\[2pt]
+                s2cloudless & ML & No & Yes & \citep{zupanc2017improving} \\[2pt]
+                Cloud Score+ & ML & No & Yes & \citep{pasquarella2023comprehensive} \\[2pt]
+                Sen2Cor & Physical Rules & Yes & No & \citep{mainknorn2017sen2cor} \\[2pt]
+                SEnSeI-v2 & Multimodal \& DL & Yes & No & \citep{francis2024sensor} \\[2pt]
+                UnetMob V2 & DL & Yes & No & \citep{aybar2024cloudsen12plus} \\
+                \bottomrule
+                \end{tabular}
+            \end{table}
+
+
+            \subsubsection{Fmask 4.0}
+                Fmask is a single-scene physical-rule-based CM that detects clouds using its physical properties such as color and brightness \citep{qiu2019fmask}. The algorithm was initially designed for Landsat, using its thermal band and cirrus features to identify cloud properties over land \citep{zhu2012object}. Therefore, Fmask primarily relies on cirrus probability to detect clouds in S2 imagery, resulting in significant omission errors in CD \citep{qiu2019fmask}. 
+
+            \subsubsection{KappaMask V2}
+                KappaMask is a CNN-based CM algorithm designed to detect both clouds and their shadows in Sentinel-2 (S2) imagery \citep{domnich2021kappamask}. Its architecture builds on the U-Net framework, a model widely adopted for image segmentation tasks. To enhance efficiency, KappaMask incorporates an active learning strategy during training and has been fine-tuned using a terrestrial dataset from Northern Europe.
+
+            \subsubsection{s2cloudless}
+                S2cloudless is a single-scene ML-based CM for S2 \citep{zupanc2017improving}. The s2cloudless was trained on a large, globally covering dataset. It is monotemporal, does not consider any spatial context, and can therefore be run at any resolution \citep{skakun2022cloud}. Users can convert the cloud probability map into a CM by thresholding the cloud probability map. 
+
+            \subsubsection{Cloud Score+}
+                Cloud Score+ (CS+) is a single-scene ML-based CM that computes pixel-level cloud probability scores (0-100) for Landsat and S2 imagery \citep{pasquarella2023comprehensive}. The method employs clear thresholding to distinguish cloudy pixels, with CS+ incorporating temporal DL to enhance detection accuracy. 
+
+            \subsubsection{Sen2Cor}
+                Sen2Cor is a single-scene physical-rule-based CM for S2 imagery \citep{mainknorn2017sen2cor}. This algorithm does scene classification, including cloud and shadow detection, to improve downstream analysis. Sen2Cor is widely used as a baseline for CD in optical RS. Its physical-rule-based approach provides reliable results but may lack the adaptability of data-driven methods.
+
+            \subsubsection{SEnSeI-v2}
+                Spectral ENcoder for SEnsor Independence (SEnSeI-v2) is a multimodal DL-based CM model for S2 \citep{francis2024sensor}. It is a model for multi-sensor generalization, overcoming the sensor-specific limitation. It was built on SEnSeI-v1 with three improvements: a better architecture, reformulation of CM for heterogeneous labels, and multimodal support (optical and SAR) for diverse data to complement multispectral imagery.
+
+            \subsubsection{UnetMobV2}
+                UnetMobV2 is a DL-based CM for S2 imagery. It is built on a U-Net architecture with a MobileNetV2 backbone, utilizing the high-quality pixel-level annotation set \citep{aybar2022cloudsen12}. This model is optimized for processing S2 data, delivering accurate change detection results at high resolution. UnetMobV2 was trained on large datasets (CloudSEN12+), enabling it to generalize its results across various landscapes and cloud conditions.
+
+        \subsection{Segmentation Model}
+            This study employed the SAM \citep{kirillov2023segment} for automatic image segmentation tasks. SAM is a foundation model trained on the extensive SA-1B dataset comprising over 1 billion masks across 11 million curated images. It is designed to perform zero-shot segmentation on a wide range of images without requiring task-specific training. For our analysis, we utilized the Vision Transformer-Large (ViT-L) image encoder with fully automatic segmentation mode, which segments the entire image. This differs from \citet{wang2024empirical} work, which utilized the Visual Reference Prompt tool to indicate the object to be segmented.
+            
+            We employed SAM as an assistance model to evaluate how CM improves the self-information quality of an image, rendering it more predictable. SAM outcomes were evaluated empirically through visual inspection and counting of segmented objects across a series of aerial images influenced by varying degrees of cloud cover.
+
+            Using time-series S2 data from CloudPlast helped evaluate how effectively SAM dealt with challenges such as clouds, seasonal changes, and weather events. We compared the outputs from cloud-masked images with those from raw counterparts, thereby evaluating the changes in image entropy and ($\overline{\Delta NO}$).
+
+        \subsection{Evaluation Metrics}
+            Different methodological approaches were selected to improve the comparison. The CM comparison used metrics derived from the confusion matrix, including OA, F1-score, and IoU. Furthermore, we incorporated two novel metrics ($\overline{\Delta H}$ and $\overline{\Delta NO}$), which measured the relative change in segmentation results between images with and without masks. The performances of CM algorithms were compared using the same 2200 images from the CloudSEN12+ dataset, which were randomly pre-selected. We employed the four classes (clear land, thick clouds, thin clouds, and cloud shadows) from CloudSEN12+ and evaluated accuracy by comparing each classified pixel against its manually labeled reference. The clear land class was a synonym of Earth's surface, including dry land and water.
+            
+            The OA represents the proportion of correctly classified pixels relative to the total number of validated instances (Equation \ref{eq 5}).
+
+            \begin{equation}
+            \label{eq 5}
+                OA = \frac{TP + TN}{TP+FP+TN+FN}
+            \end{equation}
+
+            where TP is the number of true positives, TN is the number of true negatives, FP is the number of false positives, and FN is the number of false negatives.
+
+            The F1 is the harmonic mean of User's Accuracy (UA) and Producer's Accuracy (PA), representing a class's accuracy (Equation \ref{eq 6}). UA is also called Precision, and PA is known as Recall.
+
+            \begin{equation}
+            \label{eq 6}
+                F1_{score}=\frac{2}{UA^{-1}+PA^{-1}}=\frac{2TP}{2TP+FP+FN}
+            \end{equation}
+
+            IoU, also known as the Jaccard index, represents the ratio of the intersecting area to the union area between the predicted segmentation and the ground truth. Equation \ref{eq 7} defines IoU.
+
+            \begin{equation}
+            \label{eq 7}
+                IoU = \frac{TP}{TP+FP+FN}
+            \end{equation}
+
+            The relative difference in object counts ($\Delta NO$) represents the proportional change between the number of objects detected in cloud-masked images versus those in the raw images (Eq. \ref{eq 8}). For specific comparative analyses, we also measured the absolute number of objects segmented per image (\text{Nº OBJ}), which is either the number of objects detected in a single image or an average calculated by dividing the total number of objects detected by the number of images in a set.
+
+            \begin{equation}
+            \label{eq 8}
+                \Delta NO = \frac{\text{Nº OBJ}_M - \text{Nº OBJ}_R}{\text{Nº OBJ}_R} \times 100
+            \end{equation}
+
+            where $\text{Nº OBJ}_M$ is the absolute number of objects segmented in the masked image, and $\text{Nº OBJ}_R$ is the absolute number of objects segmented in the respective raw image
+
+            If $\Delta NO > 0$, this implies that the masked image presented more segmented objects than the raw image. Inversely, $\Delta NO < 0$ means that the raw image had more segmented objects than the respective masked image. $NO \approx 0$ indicates that the CM didn't change the SAM's output, which usually happens when the scene has no clouds. In order to compare and evaluate the CMs, we calculated the mean of $\Delta NO$ across the imagery set, what we named $\overline{\Delta NO}$.
+
+            Equation 9 shows the entropy difference between the raw and masked images in one of the three visible bands. The entropy values from the R, G, and B bands behaved similarly (as shown later in Figure 8 of Section 4). Therefore, in this analysis, we present the entropy for RGB bands, or only the H(R), where R represents the red band.
+
+            \begin{equation}
+            \label{eq 9}
+                \Delta{H(R)}=H(R)_{Raw}-H(R)_{Masked}
+            \end{equation}
+
+            If $\Delta H(R)>0$, this implies there was an increase in the scene uncertainty. Inversely, $\Delta H(R)<0$ means that the CM decreased the uncertainty, increasing the image predictability. $\Delta H(R) \approx 0$ indicates that the CM did not change the information content. In order to compare and evaluate the CMs, we calculated the mean of $\Delta H$ in each band across the image set and named it $\overline{H(\text{band})}$. Given that the RGB bands exhibit similar values and behavior (See Figure 8 in Section 4), the red band was chosen as the only one shown in some analyses. For simplicity, we adopted $\overline{\Delta{H}}$ to refer to $\overline{\Delta H(R)}$ in the rest of the paper. 
+
+            A complementary analysis was conducted on 1200 images from CloudPlast, where we assessed the effect of cloud masking on the agricultural landscape. We used the best-performing mask from the previous analysis (SEnSei-V2) on CloudPlast, calculating the mean relative difference in object counts ($\overline{\Delta NO}$) and the mean entropy difference ($\overline{\Delta H}$).
+
+            \subsection{Edge Case Assessment}
+                The edge cases were selected from the two tails of the $\Delta NO$ results distribution on the CloudPlast dataset: (1) scenes with a high positive object gain and (2) scenes with high negative $\Delta NO$. We concentrated on the outliers and examined the effect of CM on segmentation outcomes by visually inspecting these extreme scenarios, identifying specific cases, and interpreting why CM has the most and the least impact on segmentation. Additionally, the edge cases analysis also revealed situations where aggressive masks worsened SAM results.
+
+        \section{Results and Discussion}
+
+        In this section, we present the results of the CM algorithms comparison and discuss their impact on segmentation performance. We first introduce an example of the effects of cloud masking in SAM outputs, which will be further discussed in Sections \ref{results_1} and \ref{results_2}. In Section \ref{results_1}, we compared CM methods on the CloudSEN12+ dataset to assess their effectiveness under diverse atmospheric conditions regarding OA, F1, $\overline{\Delta H}$, $\overline{\Delta NO}$, and IoU. Followed by how CM influences segmentation outcomes (Section \ref{results_2}), focusing on relative difference in object counts and delta entropy on CloudPlast, as well as the robustness of SAM under perturbations. Finally, Section \ref{results_3} presents the edge cases of LC segmentation.
+
+        Cloud masking reduced image uncertainty and improved segmentation robustness, showing the added value of combining cloud-aware preprocessing with SAM-assisted segmentation. Figure \ref{fig 2} illustrates a typical case where SAM failed to segment numerous objects in a S2 scene due to cloud occlusion. After applying CM, the model successfully segmented significantly more objects. Figure \ref{fig 2}a shows the raw image, \ref{fig 2}b the segmented raw image, and \ref{fig 2}c the segmented masked image. The application of the CM resulted in a 2.08x reduction in entropy ($\Delta H= 5.32$) and a 1.75x increase in the number of objects ($\Delta NO= 75\%$), demonstrating improved segmentation clarity and object detection capability despite identical cloud coverage conditions. This aligns with the findings of \citet{wang2024empirical}, which revealed that SAM's robustness decreases under perturbations such as cloud cover. By removing cloudy regions, the overall entropy of the scene decreased, resulting in a more predictable and structured image that enhanced SAM's segmentation performance.
+
+        \begin{figure}[!h]
+            \centering
+            \includegraphics[width=1\linewidth]{Figures/Figure2.png}
+            \caption{Comparison of image segmentation performance under indicated cloud coverage percentage (CLD), with and without CM, evaluated using entropy (H) and number of detected objects ($\text{N° OBJ}$). (a) Original image (CLD = 38.37\%), (b) Segmented raw image (H = 10.17, N° OBJ = 24), and (c) Segmented masked image using SensSEi v2 (H = 4.85, $\text{N° OBJ = 42}$).}
+            \label{fig 2}
+        \end{figure}
+        \FloatBarrier
+
+        \subsection{Evaluation of Cloud Masking Algorithms on the CloudSEN12+ Dataset}
+        \label{results_1}
+            Figure 3 presents a visual comparison of the CM algorithms. The first image (top left) is the S2 raw image, followed by the ground-truth manually labelled mask from the CloudSEN12+ dataset. The subsequent images display the outputs of each CM, with the name of the respective algorithm indicated above. CS+ and s2cloudless might have had their visualization and metrics affected by only detecting clouds, without distinguishing between types of clouds and shadows. Then, Figures 3c and 3d and results in Table 2 considered as shadow the pixels with reflectance below the 0.1 threshold in the NIR band \citep{braaten2020s2cloudless}.
+
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=1\linewidth]{Figures/Figure3.png}
+                \caption{Visual comparison of CM algorithms applied to S2 imagery. a) S2 original image, b) CloudSEN12+ manually labeled mask, c) CS+ mask, d) s2cloudless mask, e) SenSeI V2 mask, f) UnetmobV2 mask, g) Sen2cor mask, h) Fmask 4.0 mask and i) KappaMask mask.}
+                \label{fig 3}
+            \end{figure}
+            \FloatBarrier
+
+            The accuracy assessment of CMs, including the novel metrics $\overline{\Delta H}$ and $\overline{\Delta NO}$, is shown in Table 2. SEnSeI-v2 and UnetmobV2 presented the best metrics. SEnSeI-v2 was the best at detecting thin clouds and shadows, even semitransparent and small clouds, that other algorithms usually overlook, corroborating the works of \citet{aybar2024cloudsen12plus} and \citet{francis2024sensor}. The S2 scene segmented after the application of SEnSeI-v2 showed a $\overline{\Delta NO}$ rate of 95.681\% in the CloudSEN12+ dataset. Eliminating cloudy areas reduced the scene's overall entropy (See Table 2), leading to a more structured and predictable image that improved SAM's segmentation performance. Unlike other algorithms, CS+ and s2cloudless incorporate a clear threshold and CPT, respectively. In the metrics shown in Table 2, we used the suggested thresholds for both CS+ and s2cloudless \citep{braaten2020s2cloudless,pasquarella2023comprehensive}.
+
+            \begin{table}[htbp]
+            \centering
+            \caption{Performance metrics for cloud masking algorithms.}
+            \label{tab:algorithm_performance}
+            \resizebox{\textwidth}{!}{%
+            \begin{tabular}{@{}lcccccccccccc@{}}
+            \toprule
+            \textbf{Algorithm} & \textbf{Thr.} & \textbf{OA} & $\mathbf{F1}_{\mathbf{Land}}$ & $\mathbf{F1}_{\mathbf{Thick}}$ & $\mathbf{F1}_{\mathbf{Thin}}$ & $\mathbf{F1}_{\mathbf{Shadow}}$ & $\overline{\Delta H(R)}$ & $\overline{\Delta H(G)}$ & $\overline{\Delta H(B)}$ & $\overline{\Delta NO}$ & $\mathbf{IoU}_{\mathbf{Thick}}$ \\
+            &  &  &  &  &  &  &  &  &  &  &  \\
+            \midrule
+            SEnSeI-v2 & -- & 0.904 & 0.927 & 0.931 & 0.752 & 0.843 & 3.445 & 3.566 & 3.767 & 95.681 & 0.872 \\
+            UnetmobV2 & -- & 0.884 & 0.913 & 0.920 & 0.655 & 0.811 & 3.438 & 3.557 & 3.758 & 92.267 & 0.852 \\
+            KappaMask & -- & 0.678 & 0.749 & 0.751 & 0.332 & 0.530 & 3.269 & 3.368 & 3.554 & 12.010 & 0.601 \\
+            Fmask 4.0 & -- & 0.720 & 0.760 & 0.792 & 0.000 & 0.529 & 2.780 & 2.896 & 3.084 & 18.989 & 0.656 \\
+            CS+ & 0.60 & 0.683 & 0.762 & 0.743 & 0.000 & 0.330 & 1.266 & 1.307 & 1.390 & 35.374 & 0.591 \\
+            s2cloudless & 0.50 & 0.681 & 0.712 & 0.787 & 0.000 & 0.337 & 1.884 & 1.966 & 2.075 & 27.158 & 0.649 \\
+            Sen2Cor & -- & 0.619 & 0.677 & 0.263 & 0.263 & 0.233 & 3.874 & 3.985 & 4.167 & 23.058 & 0.534 \\
+            \bottomrule
+            \end{tabular}%
+            }
+            \end{table}
+
+            All tested models showed an increase in the $\overline{\Delta NO}$, although this difference is more evident in specific models such as SEnSeI-v2 and UnetmobV2. Most of the models showed a lower average number of objects segmented by SAM on the images with CMs compared to the raw images. $\overline{\Delta NO}$ calculates the mean of the relative difference in object counts per image. Therefore, the values encountered for $\overline{\Delta NO}$ cannot be calculated using the ratio of the mean of Nº OBJ in the raw and masked images, as this would disregard image-to-image variations in NO values. This approach would not take into consideration $\Delta NO$ values that exhibit high variations. Figure 4 illustrates the mean Nº OBJ in the raw and masked S2 images and the mean $\overline{\Delta NO}$ for all CMs in the CloudSEN12+ dataset. SEnSeI-v2 and UnetMobV2 demonstrated a significant increase in $\overline{\Delta NO}$, achieving respectively 95.681\% and 92.267\%. Filtering cloud cover percentage between 10\% and 90\% significantly affects the results because raw and masked images outside this range (0-10\% and 90-100\%) produce similar segmentation outputs. Images with extensive cloud cover obstruct a significant portion of the surface; therefore, they should be excluded from independent CM analysis. Images with low cloud coverage do not show a substantial benefit from applying the mask, as they already show most of the Earth's surface information.
+
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=1\linewidth]{Figures/Figure4.png}
+                \caption{Mean number of objects segmented per image: on the raw image (blue bar) and on the masked image (yellow bar). The mean difference in the number of objects (green bar), and $\Delta NO$ (purple bar) on (a) s2cloudless, (b) CS+, (c) Sen2Cor, (d) SEnSeI-v2, and (e) UnetMobV2 f) Fmask h) KappaMask on CloudSEN12+ images.}
+                \label{fig 4}
+            \end{figure}
+            \FloatBarrier
+
+            KappaMask often overestimates clouds in certain LC classes, including multiple classes in mountainous landscapes, open and closed water bodies, and coastal regions, despite the fact that both UNetMobV2 and KappaMask share similar architectures \citep{aybar2024cloudsen12plus}. Sen2cor and KappaMask presented low F1 scores for thin clouds, 0.263 and 0.332, respectively. What could mean that thin clouds were classified as thick or undetected. Fmask and Sen2cor are physics-based methods that rely on the physical characteristics of clouds (e.g., color and brightness) to separate classes by combining bands into suitable indicators and thresholds \citep{qiu2019fmask,mainknorn2017sen2cor}.
+
+            We observed a relationship between $F1_{\text{Thick Cloud}}$ and IoU values for all seven CMs. High $\overline{\Delta NO}$ and $\overline{\Delta H}$ also related to high values of these two metrics for the two best performance CMs (UnetmobV2, SEnSeI-v2). The other CMs presented a relevant divergence. All CMs showed acceptable levels of accuracy metrics (from the confusion matrix). However, at least one of the new metrics introduced in this paper ($\overline{\Delta H}$ and $\overline{\Delta NO}$) showed mid to low values. Figure 5 shows the values for the $F1_{\text{Thick Cloud}}$, IoU, $\overline{\Delta NO}$, and $\overline{\Delta H}$ for each CM. 
+
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=1\linewidth]{Figures/Figure5.png}
+                \caption{Variation of 
+                $IoU_{\text{Thick Cloud}}$, $F1_{\text{Thick Cloud}}$, $\overline{\Delta NO}$, and $\overline{\Delta H}$ metrics across the seven CMs compared.}
+                \label{fig 5}
+            \end{figure}
+            \FloatBarrier
+        
+        \subsection{Evaluation of Cloud Masking Algorithms on CloudPlast}
+        \label{results_2}
+
+            Agricultural areas have organized shapes and patterns, which facilitate models to detect and segment LC. However, LC typically changes more rapidly in agriculture, particularly where temporary crops are grown, making the temporal dimension (seasonality) more relevant for tracking agricultural changes than other LC. Capturing dynamic patterns is essential for monitoring agriculture. Consequently, cloud cover during specific times of the year hampers the use of RS images in agriculture \citep{prudente2020limitations,tsardanidis2025cloud}, and effective CM associated with time series can make a significant difference.
+            
+            Similar to what we observed in the CloudSEN12+ dataset, the tests conducted with CloudPlast revealed that the masked images contained more overall segmented objects (see Figure 7a) and had lower entropy values (see Figure 8). The SEnSeI-v2 relative difference in object counts between raw and cloud-masked images is 117.275\% per image (Figure 7b). Figure 2 demonstrates this, showcasing an image in which the SAM identified more objects after applying the CM. We observed that the S2 masked imagery retained the information while reducing the overall uncertainty of the scene, allowing the segmentation model to detect more objects.
+
+            \begin{figure}[!h]
+                \centering
+                \includegraphics[width=1\linewidth]{Figures/Figure7.png}
+                \caption{Comparison of detected objects in raw versus cloud-masked (SEnSeI-v2 model) S2 images across the randomly selected sample points. (a) Absolute number of objects detected in raw and masked scenes, with their numerical difference. (b) Relative difference (\%) in the number of objects between raw and masked images, including the average difference (red dotted line). ROIs were randomly selected to ensure unbiased sampling across agricultural areas.}
+                \label{fig 7}
+            \end{figure}
+            \FloatBarrier
+
+            The raw images with a higher percentage of cloud cover also showed a greater mean entropy in the three visible bands (RGB). However, the images with the highest entropy after cloud masking did not seem to correlate with the entropy of the original image. The masked images with elevated entropy values are distributed throughout the cloud cover range. Figure 8 shows the entropy variation from raw to masked image concerning the cloud cover percentage for the SEnSeI-v2.
+
+            \begin{figure}[!hbt]
+                \centering
+                \includegraphics[width=1\linewidth]{Figures/Figure8.png}
+                \caption{Entropy variation (R, G, B bands) from raw to masked images concerning the cloud cover percentage and number of objects. Each circle is a sample point, and the size of each circle is the $\overline{\Delta NO}$ of the sample.}
+                \label{fig 8}
+            \end{figure}
+            \FloatBarrier
+
+            The number of objects detected and the entropy are key metrics for quantifying the impact of CM on image information. However, the relationship between these metrics is not straightforward; a low entropy value does not necessarily correspond to a lower number of detected objects. As presented in Section 2, scenes with different numbers of objects can share identical entropy values if their pixel intensity histograms match. Furthermore, masking the images reduced the entropy for all scenes and increased the overall number of objects (See Table 2). However, the number of objects did not present the same behavior for all scenarios, especially when dealing with edge cases, such as highly complex scenes. An analysis combining entropy and texture could provide a more accurate and direct metric to evaluate the relationship with the number of objects. The texture provides essential information about how surfaces are structured and how a location relates to its surroundings \citep{haralick1973textural}.
+
+            Figure 9 illustrates the robustness of the SAM when applied to aerial imagery contaminated by clouds and cloud shadows, a common challenge in RS \citep{li2022cloud}. The figure highlights SAM's ability to maintain segmentation accuracy despite these atmospheric disturbances, which typically degrade feature separability and introduce noise. This resilience aligns with SAM's architecture, which leverages spatially aware attention mechanisms trained on diverse datasets to generalize across occluded or noisy scenes \citep{kirillov2023segment}. Empirical results suggest that such pre-training enables SAM to suppress cloud artifacts effectively, corroborating its utility in geospatial applications \citep{osco2023segment}. However, the figure also reveals that sparse clouds lead to fragmented masks, which results in more useless objects. Applying the mask can eliminate the number of fragmented cloud objects. These limitations echo broader critiques of vision foundation models in handling severe obscuration without domain-specific fine-tuning \citep{osco2023segment,kirillov2023segment}. 
+
+            \begin{figure}[!hbt]
+                \centering
+                \includegraphics[width=1\linewidth]{Figures/Figure9.png}
+                \caption{The left image shows how the segmentation model accurately segments land cover despite thin clouds and shadows. The right image is the original Sentinel-2 image.}
+                \label{fig 9}
+            \end{figure}
+            \FloatBarrier
+
+            Our results corroborate with \citet{wang2024empirical}, who concluded that SAM's performance declines under perturbed images. In the RS context, clouds represent a significant source of perturbation. Although SAM's performance is relatively more stable under environmental perturbations, such as fog or clouds, compared to other perturbation types such as Gaussian noise and motion blur \citep{wang2024empirical} our findings provide a robustness analysis distinct from \citet{wang2024empirical}. Hereby, we fill a gap in the literature by segmenting the entire image in a fully automatic segmentation mode and introducing $\overline{\Delta H}$ and $\overline{\Delta NO}$.
+            
+        \subsection{Edge Cases}
+        \label{results_3}
+            Spectral, textural, and contextual features are three fundamental pattern elements used in human interpretation of images \citep{haralick1973textural}. Edge cases, which represent atypical scenarios, can reveal both the hidden vulnerabilities and strengths of an analysis. Figure 10 illustrates a scenario where SAM identified significantly more objects in the masked image compared to the raw S2. In this particular scene, the image is low-cloudy (33.40\% cloud cover). Notably, SAM demonstrated a low performance when images were affected by such fog-like conditions \citep{wang2024empirical}. Therefore, after removing the perturbations, most of the scene was still usable for segmentation, and SAM performed better and detected more objects.
+            
+            \begin{figure}[!hbt]
+                \centering
+                \includegraphics[width=1\linewidth]{Figures/Figure10.png}
+                \caption{Edge case with a high positive object gain. Comparison of images with and without CM, based on entropy, number of objects, and cloud percentage. (a) Original image, (b) Segmented raw image, and (c) Segmented masked (SensSei v2) image.}
+                \label{fig 10}
+            \end{figure}
+            \FloatBarrier
+
+            Figure 11 presents the scenario in which SAM identified significantly fewer objects in the masked image. The aggressive CM buffered and oversimplified the edges of thick clouds. It also removed thin clouds where SAM could still segment objects, depending on the LC of the area. Additionally, the mask clearly removed two likely plasticulture fields, where growers had mulched the soil with plastic film. It illustrates a typical case where the excessive mask hides objects from SAM. In this scene, the image is almost clear (14.37\% cloud cover), but the clouds concentrated in the center, with sparse and thin clouds at the borders of the cloud formation. The segmenter lost objects because excessive masking obscured those previously detected by SAM.
+
+            \begin{figure}[!hbt]
+                \centering
+                \includegraphics[width=1\linewidth]{Figures/Figure11.png}
+                \caption{Edge case with a high negative object gain. Comparison of images with and without CM, based on entropy, number of objects, and cloud percentage. (a) Original image, (b) Segmented raw image, and (c) Segmented masked (SensSei v2) image. This scene illustrates the excessive masking leading to fewer objects being detected.}
+                \label{fig 11}
+            \end{figure}
+            \FloatBarrier
+
+            In a search for S2 scenes where CM had a minor impact on segmentation outcomes, we found some examples, as the one presented in Figure 12. This scene features a complex landscape with unclear object boundaries, irregular shapes, low contrast, and hard-to-distinguish textures (Figure 12.a). Segmenting smaller and irregular objects poses difficulties for SAM, regardless of whether we use automatic or prompt-based segmentation \citep{osco2023segment}. Figure 12b illustrates the situation where SAM struggled to define the objects. In such instances, cloud masking has a minor impact on the segmentation results (Figure 12c). Entropy alone does not fully define the predictability of an image. Combining spectral, textural, and contextual features with entropy would be necessary regardless of whether the image is a photomicrograph or a satellite image. For example, to accurately assess the unpredictability of the texture, we first need to create the co-occurrence matrix for all objects in the image and then calculate entropy from this matrix to quantify the unpredictability of the texture \citep{haralick1973textural}.
+
+            \begin{figure}[!hbt]
+                \centering
+                \includegraphics[width=1\linewidth]{Figures/Figure12.png}
+                \caption{Edge case in a highly complex scenario. Comparison of images with and without CM, based on entropy, number of objects, and cloud percentage. (a) Original image, (b) Segmented raw image, and (c) Segmented masked (SensSei v2) image. This scene is an intrinsically complex landscape, featuring uneven vegetation growth, some local roads, and unusually shaped, elongated agricultural plots.}
+                \label{fig 12}
+            \end{figure}
+            \FloatBarrier
+
+            In general, and regardless of the CM application, SAM consistently struggled to segment highly complex scenes accurately. Particularly, the segmenter failed in those landscapes characterized by heterogeneous and intricate LC patterns, where multiple objects of varying shapes, sizes, and spectral properties are tightly interwoven, making object boundaries difficult to delineate.
+
+    \section{Conclusion}
+
+    This study demonstrated that cloud masking effectively reduces scene uncertainty while retaining meaningful surface information, as quantified by entropy reduction and increased segmentation performance. High-performing masks, such as SEnSeI-v2 and UnetMobV2, achieved superior accuracy metrics while also improving object detection consistency in cloud-contaminated imagery. We also observed that overly aggressive masks may conceal valid objects, particularly under thin clouds, highlighting the need for balanced thresholds that mitigate perturbations without excessive information loss.
+
+    Our findings establish the entropy difference ($\overline{\Delta H}$) and the relative difference in object counts ($\overline{\Delta NO}$) as valuable complementary indicators for evaluating cloud masking performance beyond pixel-level accuracy metrics. These measures not only quantify the reduction in spectral uncertainty but also link cloud masking to its practical impact on robust segmentation models such as SAM.
+
+    Future work should focus on refining cloud detection thresholds to adapt across diverse geographies and seasons, improving shadow detection strategies, and exploring textural metrics alongside entropy to better capture structural complexity in images. Additionally, integrating entropy-driven evaluation into cloud-aware workflows can further enhance the reliability of time-critical applications such as agriculture monitoring, disaster response, and land cover mapping.
+
+    \clearpage/home/fekenzofugi/Documents/Cloud-Mask-Comparison/Figures
+
+\bibliography{kenzo}
+\bibliographystyle{kenzo}
+
+\end{document}
