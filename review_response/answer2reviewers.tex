@@ -4,6 +4,7 @@
 \usepackage{graphicx}
 \usepackage{placeins}
 \usepackage{booktabs}
+\usepackage{soul}
 
 
 % Optional math commands from https://github.com/goodfeli/dlbook_notation.
@@ -30,9 +31,56 @@ Campinas, SP, Brazil, 13083-896 \\
 \begin{document}
 \maketitle
 
-% \begin{abstract}
+\section{Associate Editor Review}
+    \subsection{General Comment}
+    Dear Dr. de Souza and Co-authors
 
-% \end{abstract}
+    Thank you for submitting your manuscript to RSE. I have now received two insightful reviews from field experts. Both reviewers find the topic relevant and see potential value in an entropy-based framework for evaluating cloud masks. However, they also identify several substantive issues that currently limit the robustness, interpretability, and impact of the work.
+    
+    Based on the reviews and my own assessment, I have to recommend a rejection of the manuscript in its form. However, recognizing the potential of the manuscript, I encourage you to submit a revised manuscript if you can address the reviewers comments thoroughly and revised the manuscript accordingly Please note that further consideration of the manuscript is conditional on addressing the following non-negotiable technical points.
+        \paragraph{Reply to Editor General Comment:}
+        Dear Associate Editor Zhibo Zhang,
+        we appreciate your thoughtful review and the constructive feedback from you and the reviewers. We thoroughly addressed the identified issues and revised the manuscript accordingly. We ensured that all non-negotiable technical corrections were included in our updated submission. Thank you for the opportunity to improve our work.
+
+    \subsection{Non-negotiable technical corrections}
+        \subsubsection{Comment \#1}
+        Consistency and correctness of the $\Delta H$ definition and interpretation: Your definition of $\Delta H$ must be internally consistent with the interpretation and conclusions throughout the manuscript. Please revise the text, figures, and discussion so that the sign and meaning of $\Delta H$ are correct and unambiguous, and ensure that any results or conclusions that depend on $\Delta H$ are updated accordingly.
+        \paragraph{Reply to non-negotiable technical corrections - comment \#1:}
+        We updated $\Delta H$ definition and interpretation throughout the manuscript to ensure consistency and correctness. All dependent results and conclusions were revised accordingly.
+
+        \subsubsection{Comment \#2}
+        Explicit and correct multiclass evaluation formulation: The manuscript evaluates multiple classes (e.g., thick cloud, thin cloud, shadow, clear land), but the reported metrics and formulas are largely presented in binary form. Please explicitly state how precision, recall, F1, IoU, and any other measures are computed in the multiclass setting (e.g., per-class with macro-averaging, micro-averaging, one-vs-rest, or reduction to a binary cloud/non-cloud problem). Report per-class results where appropriate, and ensure the text, tables, and captions make the evaluation protocol transparent and reproducible.
+        \paragraph{Reply to non-negotiable technical corrections - comment \#2:} 
+        We inserted a short snippet in the \hl{Section 2.3} to explain how we computed the metrics in the multiclass setting to ensure transparency and reproducibility of the evaluation protocol. We also showed the metrics for all classes in the supplementary material.
+
+        \subsubsection{Comment \#3}
+        Reproducibility of the experimental setup: Please strengthen the Methods so an informed reader can reproduce the analysis. This includes the exact datasets/splits, preprocessing steps, and configuration choices used for each cloud mask method. For the SAM-based analysis, clearly specify the mode and settings used (e.g., fully automatic vs prompt-based, model variant, and key parameters that influence the number and scale of predicted objects).
+        \paragraph{Reply to non-negotiable technical corrections - comment \#3:} 
+        Thank you for this comment. We have revised and clarified the entire manuscript, with particular emphasis on the methodological section. We have strengthened the Methods by detailing datasets and splits, preprocessing steps, and configuration choices for each cloud mask method. For the SAM-based analysis, we previously reported that we used the fully automatic mode. We now specify additional settings and key parameters.
+
+    \subsection{There are also a few minor issues:}
+        \subsubsection{Minor Issue \#1}
+        Clarify the paper’s contributions in the Introduction: Conclude the Introduction with a concise, structured list of contributions, and ensure the novelty relative to existing cloud-mask evaluation practices is articulated clearly.
+        \paragraph{Reply to minor issue \#1:}
+        We appreciate your feedback. The second half of the introduction was completely rewritten to address this recommendation and other reviewers' suggestions.
+
+        \subsection{Minor Issue \#2}
+        Substantiate the “downstream impact” claim beyond object counts: If the goal is to quantify downstream impacts of cloud masking, please strengthen the evidence that the proposed proxy metric (e.g., $\Delta NO$ from SAM) is meaningfully tied to a downstream task objective. This could include additional validation on task-relevant outcomes (not just object counts), sensitivity analyses showing robustness to configuration choices, or a carefully framed scope statement that limits claims accordingly.
+        \paragraph{Reply to minor issue \#2:}
+        We agree that using only object counts as a measure of segmentation quality is unconvincing. However, our focus is on the quality and performance of the cloud mask. Therefore, given the scope of this work, we decided not to conduct additional experiments involving downstream tasks. Thus, we clarified the scope statement to limit claims accordingly.
+        \hl{We added the following sentence in the last paragraph of the Introduction: "While we acknowledge that object count changes may not fully capture all aspects of downstream task performance, our focus remains on evaluating cloud mask quality and its potential implications for downstream tasks."}
+        \hl{We also added the following sentence in the Conclusion section: "While we acknowledge that object count changes may not fully capture all aspects of downstream task performance, our focus remains on evaluating cloud mask quality and its potential implications for downstream tasks."}
+
+        \hl{Fernando, pensei em criar uma nova métrica que relaciona $\Delta NO$ com $\Delta H$, tipo um quociente de variação (derivada) para tentar capturar melhor o impacto na tarefa downstream. O que você acha?}
+
+        \subsection{Minor Issue \#3}
+        Statistical support for threshold analyses and recommendations: Where the manuscript recommends thresholds or “optimal ranges,” please include uncertainty estimates and/or variability across scenes or subsets, and avoid over-generalized recommendations unless they are supported.
+        
+        Please let me know if you have any questions.
+        \paragraph{Reply to minor issue \#3:}
+        While clarifying the article, we noticed there was too much information. We then decided to relocate some details to the supplementary material and remove the threshold sensitivity analysis section. Therefore, we will not incorporate this correction.
+\clearpage
+         
     
 \section{Reviewer \#1}
     \subsection{General Comment}
